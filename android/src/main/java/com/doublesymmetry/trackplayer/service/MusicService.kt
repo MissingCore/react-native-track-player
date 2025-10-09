@@ -16,6 +16,7 @@ import androidx.core.app.NotificationCompat.PRIORITY_LOW
 import com.doublesymmetry.kotlinaudio.models.*
 import com.doublesymmetry.kotlinaudio.models.NotificationButton.*
 import com.doublesymmetry.kotlinaudio.players.QueuedAudioPlayer
+import com.doublesymmetry.trackplayer.HeadlessJsTaskService
 import com.doublesymmetry.trackplayer.R as TrackPlayerR
 import com.doublesymmetry.trackplayer.extensions.NumberExt.Companion.toMilliseconds
 import com.doublesymmetry.trackplayer.extensions.NumberExt.Companion.toSeconds
@@ -29,7 +30,6 @@ import com.doublesymmetry.trackplayer.module.MusicEvents
 import com.doublesymmetry.trackplayer.module.MusicEvents.Companion.METADATA_PAYLOAD_KEY
 import com.doublesymmetry.trackplayer.utils.BundleUtils
 import com.doublesymmetry.trackplayer.utils.BundleUtils.setRating
-import com.facebook.react.HeadlessJsTaskService
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.jstasks.HeadlessJsTaskConfig
 import com.facebook.react.modules.core.DeviceEventManagerModule
@@ -583,6 +583,10 @@ class MusicService : HeadlessJsTaskService() {
                         notification = it.notification;
                         if (it.ongoing) {
                             if (player.playWhenReady) {
+                                if (wakeLock?.isHeld != true) {
+                                    Timber.tag("RNTP").d("acquiring wakelock")
+                                    wakeLock?.acquire()
+                                }
                                 startForegroundIfNecessary()
                             }
                         } else if (shouldStopForeground()) {
@@ -592,6 +596,10 @@ class MusicService : HeadlessJsTaskService() {
                             // user's queue is complete. This prevents the service from potentially
                             // being immediately destroyed once the player finishes playing media.
                             scope.launch {
+                                if (wakeLock?.isHeld == true) {
+                                    Timber.tag("RNTP").d("releasing wakelock")
+                                    wakeLock?.release()
+                                }
                                 delay(stopForegroundGracePeriod.toLong() * 1000)
                                 if (shouldStopForeground()) {
                                     @Suppress("DEPRECATION")
