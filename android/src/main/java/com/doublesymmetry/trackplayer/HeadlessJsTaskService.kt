@@ -17,10 +17,13 @@ import android.os.PowerManager
 import android.os.PowerManager.WakeLock
 import com.facebook.react.bridge.ReactContext
 import com.facebook.react.bridge.UiThreadUtil
-import com.facebook.react.internal.featureflags.ReactNativeNewArchitectureFeatureFlags
 import com.facebook.react.jstasks.HeadlessJsTaskConfig
 import com.facebook.react.jstasks.HeadlessJsTaskContext.Companion.getInstance
 import com.facebook.react.jstasks.HeadlessJsTaskEventListener
+import com.facebook.react.ReactInstanceManager
+import com.facebook.react.ReactInstanceEventListener
+import com.facebook.react.ReactNativeHost
+import com.facebook.react.ReactApplication
 import java.util.concurrent.CopyOnWriteArraySet
 
 /**
@@ -70,7 +73,14 @@ public abstract class HeadlessJsTaskService : Service(), HeadlessJsTaskEventList
 
     val context = reactContext
     if (context == null) {
-      createReactContextAndScheduleTask(taskConfig)
+      reactInstanceManager.addReactInstanceEventListener(
+        object : ReactInstanceEventListener {
+          override fun onReactContextInitialized(reactContext: ReactContext) {
+            invokeStartTask(reactContext, taskConfig)
+            reactInstanceManager.removeReactInstanceEventListener(this)
+          }
+        })
+      reactInstanceManager.createReactContextInBackground()
     } else {
       invokeStartTask(context, taskConfig)
     }
@@ -116,51 +126,11 @@ public abstract class HeadlessJsTaskService : Service(), HeadlessJsTaskEventList
   protected open val reactNativeHost: ReactNativeHost
     get() = (application as ReactApplication).reactNativeHost
 
-  /**
-   * Get the [ReactHost] used by this app. By default, assumes [getApplication] is an instance of
-   * [ReactApplication] and calls [ReactApplication.reactHost]. This method assumes it is called in
-   * new architecture and returns null if not.
-   */
-  protected open val reactHost: ReactHost?
-    get() = (application as ReactApplication).reactHost
+  protected val reactInstanceManager: ReactInstanceManager
+    get() = reactNativeHost.reactInstanceManager
 
   protected val reactContext: ReactContext?
-    get() {
-      if (ReactNativeNewArchitectureFeatureFlags.enableBridgelessArchitecture()) {
-        val reactHost =
-          checkNotNull(reactHost) { "ReactHost is not initialized in New Architecture" }
-        return reactHost.currentReactContext
-      } else {
-        val reactInstanceManager = reactNativeHost.reactInstanceManager
-        return reactInstanceManager.currentReactContext
-      }
-    }
-
-  private fun createReactContextAndScheduleTask(taskConfig: HeadlessJsTaskConfig) {
-    if (ReactNativeNewArchitectureFeatureFlags.enableBridgelessArchitecture()) {
-      val reactHost = checkNotNull(reactHost)
-      reactHost.addReactInstanceEventListener(
-        object : ReactInstanceEventListener {
-          override fun onReactContextInitialized(context: ReactContext) {
-            invokeStartTask(context, taskConfig)
-            reactHost.removeReactInstanceEventListener(this)
-          }
-        }
-      )
-      reactHost.start()
-    } else {
-      val reactInstanceManager = reactNativeHost.reactInstanceManager
-      reactInstanceManager.addReactInstanceEventListener(
-        object : ReactInstanceEventListener {
-          override fun onReactContextInitialized(context: ReactContext) {
-            invokeStartTask(context, taskConfig)
-            reactInstanceManager.removeReactInstanceEventListener(this)
-          }
-        }
-      )
-      reactInstanceManager.createReactContextInBackground()
-    }
-  }
+    get() = reactInstanceManager.currentReactContext
 
   public companion object {
     public var wakeLock: WakeLock? = null
