@@ -49,6 +49,7 @@ import com.google.android.exoplayer2.DefaultLoadControl.DEFAULT_MAX_BUFFER_MS
 import com.google.android.exoplayer2.DefaultLoadControl.DEFAULT_MIN_BUFFER_MS
 import com.google.android.exoplayer2.DefaultRenderersFactory
 import com.google.android.exoplayer2.ExoPlayer
+import com.google.android.exoplayer2.Format
 import com.google.android.exoplayer2.ForwardingPlayer
 import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.MediaMetadata
@@ -56,6 +57,11 @@ import com.google.android.exoplayer2.PlaybackException
 import com.google.android.exoplayer2.Player
 import com.google.android.exoplayer2.Player.Listener
 import com.google.android.exoplayer2.audio.AudioAttributes
+import com.google.android.exoplayer2.audio.AudioOffloadSupport
+import com.google.android.exoplayer2.audio.DefaultAudioOffloadSupportProvider
+import com.google.android.exoplayer2.audio.DefaultAudioSink
+import com.google.android.exoplayer2.audio.SilenceSkippingAudioProcessor
+import com.google.android.exoplayer2.audio.SonicAudioProcessor
 import com.google.android.exoplayer2.ext.mediasession.MediaSessionConnector
 import com.google.android.exoplayer2.extractor.DefaultExtractorsFactory
 import com.google.android.exoplayer2.metadata.Metadata
@@ -224,7 +230,32 @@ abstract class BaseAudioPlayer internal constructor(
         renderer.setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
 
         exoPlayer = ExoPlayer.Builder(context)
-            .setRenderersFactory(renderer)
+            .setRenderersFactory(object: DefaultRenderersFactory(this) {
+                override fun buildAudioSink(
+                    context: Context,
+                    pcmEncodingRestrictionLifted: Boolean,
+                    enableFloatOutput: Boolean,
+                    enableAudioTrackPlaybackParams: Boolean
+                ): AudioSink? {
+                    return DefaultAudioSink.Builder(context)
+                        .setPcmEncodingRestrictionLifted(pcmEncodingRestrictionLifted)
+                        .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
+                        .setAudioProcessorChain(
+                            DefaultAudioSink.DefaultAudioProcessorChain(
+                                emptyArray(),
+                                SilenceSkippingAudioProcessor(),
+                                SonicAudioProcessor()
+                            )
+                        )
+                        .setAudioOffloadSupportProvider(
+                            MyAudioOffloadSupportProvider(
+                                DefaultAudioOffloadSupportProvider(context),
+                                false
+                            )
+                        )
+                        .build()
+                }
+            })
             .setHandleAudioBecomingNoisy(true)
             .setWakeMode(
                 when (playerConfig.wakeMode) {
@@ -776,5 +807,23 @@ abstract class BaseAudioPlayer internal constructor(
             playbackError = _playbackError
             playerState = AudioPlayerState.ERROR
         }
+    }
+}
+
+class MyAudioOffloadSupportProvider(
+    private val default: DefaultAudioOffloadSupportProvider,
+    private val disableGaplessOffload: Boolean
+) : DefaultAudioSink.AudioOffloadSupportProvider by default {
+    override fun getAudioOffloadSupport(
+        format: Format,
+        audioAttributes: AudioAttributes
+    ): AudioOffloadSupport {
+        val defaultResult = default.getAudioOffloadSupport(format, audioAttributes)
+        val audioOffloadSupport = AudioOffloadSupport.Builder()
+        return audioOffloadSupport
+            .setIsFormatSupported(defaultResult.isFormatSupported)
+            .setIsGaplessSupported(defaultResult.isGaplessSupported && !disableGaplessOffload)
+            .setIsSpeedChangeSupported(defaultResult.isSpeedChangeSupported)
+            .build()
     }
 }
