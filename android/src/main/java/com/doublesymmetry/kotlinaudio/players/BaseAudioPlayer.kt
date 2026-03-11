@@ -36,6 +36,7 @@ import com.doublesymmetry.kotlinaudio.models.PlayerOptions
 import com.doublesymmetry.kotlinaudio.models.PositionChangedReason
 import com.doublesymmetry.kotlinaudio.models.WakeMode
 import com.doublesymmetry.kotlinaudio.notification.NotificationManager
+import com.doublesymmetry.kotlinaudio.players.components.MediaFactory
 import com.doublesymmetry.kotlinaudio.players.components.PlayerCache
 import com.doublesymmetry.kotlinaudio.players.components.getAudioItemHolder
 import com.doublesymmetry.kotlinaudio.utils.isUriLocalFile
@@ -226,6 +227,7 @@ abstract class BaseAudioPlayer internal constructor(
         exoPlayer = ExoPlayer.Builder(context)
             .setRenderersFactory(renderer)
             .setHandleAudioBecomingNoisy(playerConfig.handleAudioBecomingNoisy)
+            .setMediaSourceFactory(MediaFactory(context, cache))
             .setWakeMode(
                 when (playerConfig.wakeMode) {
                     WakeMode.NONE -> C.WAKE_MODE_NONE
