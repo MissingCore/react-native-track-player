@@ -215,13 +215,13 @@ abstract class BaseAudioPlayer internal constructor(
     private val mediaSession = MediaSessionCompat(context, "KotlinAudioPlayer")
     private val mediaSessionConnector = MediaSessionConnector(mediaSession)
 
-    val renderer = DefaultRenderersFactory(context)
-    renderer.setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
-
     init {
         if (cacheConfig != null) {
             cache = PlayerCache.getInstance(context, cacheConfig)
         }
+
+        val renderer = DefaultRenderersFactory(context)
+        renderer.setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
 
         exoPlayer = ExoPlayer.Builder(context)
             .setRenderersFactory(renderer)
