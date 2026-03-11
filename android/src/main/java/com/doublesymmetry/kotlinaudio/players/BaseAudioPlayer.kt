@@ -47,6 +47,7 @@ import com.google.android.exoplayer2.DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYB
 import com.google.android.exoplayer2.DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_MS
 import com.google.android.exoplayer2.DefaultLoadControl.DEFAULT_MAX_BUFFER_MS
 import com.google.android.exoplayer2.DefaultLoadControl.DEFAULT_MIN_BUFFER_MS
+import com.google.android.exoplayer2.DefaultRenderersFactory
 import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.ForwardingPlayer
 import com.google.android.exoplayer2.MediaItem
@@ -214,13 +215,17 @@ abstract class BaseAudioPlayer internal constructor(
     private val mediaSession = MediaSessionCompat(context, "KotlinAudioPlayer")
     private val mediaSessionConnector = MediaSessionConnector(mediaSession)
 
+    val renderer = DefaultRenderersFactory(context)
+    renderer.setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
+
     init {
         if (cacheConfig != null) {
             cache = PlayerCache.getInstance(context, cacheConfig)
         }
 
         exoPlayer = ExoPlayer.Builder(context)
-            .setHandleAudioBecomingNoisy(playerConfig.handleAudioBecomingNoisy)
+            .setRenderersFactory(renderer)
+            .setHandleAudioBecomingNoisy(true)
             .setWakeMode(
                 when (playerConfig.wakeMode) {
                     WakeMode.NONE -> C.WAKE_MODE_NONE
@@ -228,9 +233,9 @@ abstract class BaseAudioPlayer internal constructor(
                     WakeMode.NETWORK -> C.WAKE_MODE_NETWORK
                 }
             )
-            .apply {
-                if (bufferConfig != null) setLoadControl(setupBuffer(bufferConfig))
-            }
+//            .apply {
+//                if (bufferConfig != null) setLoadControl(setupBuffer(bufferConfig))
+//            }
             .build()
 
         mediaSession.isActive = true
