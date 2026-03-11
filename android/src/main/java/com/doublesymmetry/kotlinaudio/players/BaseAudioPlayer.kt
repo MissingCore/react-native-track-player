@@ -236,7 +236,8 @@ abstract class BaseAudioPlayer internal constructor(
                 }
             )
             .apply {
-                if (bufferConfig != null) setLoadControl(setupBuffer(bufferConfig))
+                setLoadControl(DefaultLoadControl())
+//                if (bufferConfig != null) setLoadControl(setupBuffer(bufferConfig))
             }
             .build()
 
