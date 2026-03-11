@@ -225,7 +225,7 @@ abstract class BaseAudioPlayer internal constructor(
 
         exoPlayer = ExoPlayer.Builder(context)
             .setRenderersFactory(renderer)
-            .setHandleAudioBecomingNoisy(true)
+            .setHandleAudioBecomingNoisy(playerConfig.handleAudioBecomingNoisy)
             .setWakeMode(
                 when (playerConfig.wakeMode) {
                     WakeMode.NONE -> C.WAKE_MODE_NONE
@@ -233,9 +233,9 @@ abstract class BaseAudioPlayer internal constructor(
                     WakeMode.NETWORK -> C.WAKE_MODE_NETWORK
                 }
             )
-//            .apply {
-//                if (bufferConfig != null) setLoadControl(setupBuffer(bufferConfig))
-//            }
+            .apply {
+                if (bufferConfig != null) setLoadControl(setupBuffer(bufferConfig))
+            }
             .build()
 
         mediaSession.isActive = true
